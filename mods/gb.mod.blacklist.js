@@ -35,29 +35,64 @@
             toggle.addEventListener('click', () => { showHidden = !showHidden; localStorage.setItem('gbShowHidden', showHidden ? '1' : '0'); applyBlacklistTo(); update(); });
             update(); navSub.appendChild(link); navSub.appendChild(toggle);
         }
+
         function openBlacklistModal() {
-            const overlay = el('div', 'gb-ovl'); const modal = el('div', 'gb-modal'); overlay.appendChild(modal);
+            const overlay = el('div', 'gb-ovl');
+            const modal = el('div', 'gb-modal');
+            overlay.appendChild(modal);
+
+            // Lock Body-Scroll
+            document.documentElement.classList.add('gb-lock-scroll');
+            document.body.classList.add('gb-lock-scroll');
+
             const current = (localStorage.getItem(LS_BLACKLIST) || '').trim();
             modal.innerHTML = `
                 <h3>Tag-Blacklist</h3>
-                <div class="gb-row" style="opacity:.8;font-size:12px">1 Tag pro Zeile (oder Leerzeichen/Komma getrennt). "_" ≙ Leerzeichen; case-insensitive.</div>
+                <div class="gb-row" style="opacity:.8;font-size:12px">
+                1 Tag pro Zeile (oder Leerzeichen/Komma getrennt). "_" ≙ Leerzeichen; case-insensitive.
+                <br>Hinweis: Autocomplete verfügbar – tippe ≥ 2 Zeichen, wähle mit ↑/↓ und bestätige mit Enter/Tab.
+                </div>
                 <textarea id="gb-bll" class="gb-inp" style="width:100%;height:140px;font:13px ui-monospace,Consolas,monospace;">${current}</textarea>
                 <div class="gb-row">
-                    <button id="gb-save" class="gb-suite-btn">Speichern & Anwenden</button>
-                    <button id="gb-clear" class="gb-suite-btn">Leeren</button>
-                    <button id="gb-close" class="gb-suite-btn">Schließen</button>
-                    <span id="gb-stat" style="margin-left:auto;opacity:.8"></span>
+                <button id="gb-save" class="gb-suite-btn">Speichern & Anwenden</button>
+                <button id="gb-clear" class="gb-suite-btn">Leeren</button>
+                <button id="gb-close" class="gb-suite-btn">Schließen</button>
+                <span id="gb-stat" style="margin-left:auto;opacity:.8"></span>
                 </div>
             `;
+
             const stat = modal.querySelector('#gb-stat');
             const refresh = () => stat.textContent = `${applyBlacklistTo()} Bilder aktuell ausgeblendet`;
             refresh();
-            modal.querySelector('#gb-save').addEventListener('click', () => { localStorage.setItem(LS_BLACKLIST, modal.querySelector('#gb-bll').value); applyBlacklistTo(); refresh(); close(); });
-            modal.querySelector('#gb-clear').addEventListener('click', () => { localStorage.removeItem(LS_BLACKLIST); modal.querySelector('#gb-bll').value = ''; applyBlacklistTo(); refresh(); });
+
+            // --- Autocomplete binden (scrollbar via Helper) ---
+            const ta = modal.querySelector('#gb-bll');
+            let unbindAC = null;
+            if (ta && window.GBSuite?.tagAutocomplete?.bind) {
+                // minChars/limit optional anpassbar
+                unbindAC = window.GBSuite.tagAutocomplete.bind(ta, { minChars: 2, limit: 12 });
+            }
+
+            modal.querySelector('#gb-save').addEventListener('click', () => {
+                localStorage.setItem(LS_BLACKLIST, ta.value);
+                applyBlacklistTo(); refresh(); close();
+            });
+            modal.querySelector('#gb-clear').addEventListener('click', () => {
+                localStorage.removeItem(LS_BLACKLIST); ta.value = ''; applyBlacklistTo(); refresh();
+            });
             modal.querySelector('#gb-close').addEventListener('click', close);
             overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+            
+            overlay.addEventListener('wheel', e => e.stopPropagation(), { passive: true });
+            overlay.addEventListener('touchmove', e => e.stopPropagation(), { passive: true });
+
             document.body.appendChild(overlay);
-            function close() { overlay.remove(); }
+
+            function close() {
+                overlay.remove();
+                document.documentElement.classList.remove('gb-lock-scroll');
+                document.body.classList.remove('gb-lock-scroll');
+            }
         }
 
         return {
