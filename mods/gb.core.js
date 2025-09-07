@@ -12,6 +12,7 @@
         Columns: 6,
         ShowHidden: false,
         Theme: 'system',
+        AnimatedBorderColor: '#eb2f05',
 
         // generic for all Modules
         ApiUserId: '',
@@ -160,38 +161,44 @@
         overlay.appendChild(modal);
 
         const generalHTML = `
-      <div class="gb-form-row" style="margin-top:2px; gap:18px">
-        <label style="min-width:auto; font-weight:700; font-size:16px">Modules aktivieren</label>
-        <label class="gb-switch"><input type="checkbox" data-key="InfiniteScroll" ${settings.InfiniteScroll ? 'checked' : ''}> Infinite Scroll</label>
-        <label class="gb-switch"><input type="checkbox" data-key="Blacklist" ${settings.Blacklist ? 'checked' : ''}> Blacklist</label>
-        <label class="gb-switch"><input type="checkbox" data-key="TagGroups" ${settings.TagGroups ? 'checked' : ''}> Tag-Groups</label>
-        <label class="gb-switch"><input type="checkbox" data-key="Favorites" ${settings.Favorites !== false ? 'checked' : ''}> Favorites</label>
-      </div>
-      <div class="gb-form-row">
-        <label>Theme</label>
-        <select id="gb-theme" class="gb-inp" style="width:auto">
-          <option value="system" ${settings.Theme === 'system' ? 'selected' : ''}>System</option>
-          <option value="light"  ${settings.Theme === 'light' ? 'selected' : ''}>Light</option>
-          <option value="dark"   ${settings.Theme === 'dark' ? 'selected' : ''}>Dark</option>
-        </select>
-      </div>
-      <div class="gb-form-row">
-        <label>Columns (2–12)</label>
-        <input id="gb-col" class="gb-inp" style="width:8ch" type="number" min="2" max="12" value="${settings.Columns ?? 6}">
-      </div>
-      <div class="gb-form-row">
-        <label>Show hidden (Blacklist)</label>
-        <label class="gb-switch"><input id="gb-showhidden" type="checkbox" ${settings.ShowHidden ? 'checked' : ''}> Zeige ausgeblendete Einträge</label>
-      </div>
-      <div class="gb-form-row">
-        <label>User ID</label>
-        <input id="gb-user-id" class="gb-inp" style="width:18ch" value="${settings.ApiUserId || ''}" placeholder="z.B. 1394166">
-      </div>
-      <div class="gb-form-row">
-        <label>API Key</label>
-        <input id="gb-api-key" class="gb-inp" type="password" value="${settings.ApiKey || ''}" placeholder="in Account Options">
-      </div>
-    `;
+            <div class="gb-form-row" style="margin-top:2px; gap:18px">
+                <label style="min-width:auto; font-weight:700; font-size:16px">Modules aktivieren</label>
+                <label class="gb-switch"><input type="checkbox" data-key="InfiniteScroll" ${settings.InfiniteScroll ? 'checked' : ''}> Infinite Scroll</label>
+                <label class="gb-switch"><input type="checkbox" data-key="Blacklist" ${settings.Blacklist ? 'checked' : ''}> Blacklist</label>
+                <label class="gb-switch"><input type="checkbox" data-key="TagGroups" ${settings.TagGroups ? 'checked' : ''}> Tag-Groups</label>
+                <label class="gb-switch"><input type="checkbox" data-key="Favorites" ${settings.Favorites !== false ? 'checked' : ''}> Favorites</label>
+            </div>
+            <div class="gb-form-row">
+                <label>Theme</label>
+                <select id="gb-theme" class="gb-inp" style="width:auto">
+                <option value="system" ${settings.Theme === 'system' ? 'selected' : ''}>System</option>
+                <option value="light"  ${settings.Theme === 'light' ? 'selected' : ''}>Light</option>
+                <option value="dark"   ${settings.Theme === 'dark' ? 'selected' : ''}>Dark</option>
+                </select>
+            </div>
+            <div class="gb-form-row">
+                <label>Columns (2–12)</label>
+                <input id="gb-col" class="gb-inp" style="width:8ch" type="number" min="2" max="12" value="${settings.Columns ?? 6}">
+            </div>
+            <div class="gb-form-row">
+                <label>Animated Border Color</label>
+                <input id="gb-anim-color" class="gb-inp" type="color"
+                        value="${settings.AnimatedBorderColor || '#0ea5ff'}" style="width: 8ch">
+                <span style="opacity:.7;font-size:12px">Gilt bei Tags <b>animated</b>/<b>animated_gif</b>, außer <b>video</b> oder <b>sound</b>.</span>
+            </div>
+            <div class="gb-form-row">
+                <label>Show hidden (Blacklist)</label>
+                <label class="gb-switch"><input id="gb-showhidden" type="checkbox" ${settings.ShowHidden ? 'checked' : ''}> Zeige ausgeblendete Einträge</label>
+            </div>
+            <div class="gb-form-row">
+                <label>User ID</label>
+                <input id="gb-user-id" class="gb-inp" style="width:18ch" value="${settings.ApiUserId || ''}" placeholder="z.B. 1394166">
+            </div>
+            <div class="gb-form-row">
+                <label>API Key</label>
+                <input id="gb-api-key" class="gb-inp" type="password" value="${settings.ApiKey || ''}" placeholder="in Account Options">
+            </div>
+        `;
 
         const tabsBar = document.createElement('div'); tabsBar.className = 'gb-tabs';
         const panelsWrap = document.createElement('div'); panelsWrap.style.minWidth = 'min(72vw, 680px)';
@@ -231,8 +238,9 @@
         const actions = document.createElement('div');
         actions.className = 'gb-row'; actions.style.marginTop = '14px';
         actions.innerHTML = `
-      <button class="gb-suite-btn" id="gb-save">Speichern</button>
-      <button class="gb-suite-btn" id="gb-close">Schließen</button>`;
+            <button class="gb-suite-btn" id="gb-save">Speichern</button>
+            <button class="gb-suite-btn" id="gb-close">Schließen</button>
+        `;
         modal.appendChild(actions);
 
         modal.querySelector('#gb-close').addEventListener('click', () => overlay.remove());
@@ -243,6 +251,7 @@
             settings.Columns = Math.max(2, Math.min(12, Number(modal.querySelector('#gb-col')?.value ?? 6)));
             settings.ShowHidden = !!modal.querySelector('#gb-showhidden')?.checked;
             settings.Theme = modal.querySelector('#gb-theme')?.value || 'system';
+            settings.AnimatedBorderColor = modal.querySelector('#gb-anim-color')?.value || '#0ea5ff';
             settings.ApiUserId = (modal.querySelector('#gb-user-id')?.value || '').trim();
             settings.ApiKey = (modal.querySelector('#gb-api-key')?.value || '').trim();
 
@@ -277,7 +286,7 @@
             const run = () => {
                 try { applyTheme(); } catch { }
                 mountSettingsButton();
-                Registry.initEnabled(); 
+                Registry.initEnabled();
             };
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', run, { once: true });
