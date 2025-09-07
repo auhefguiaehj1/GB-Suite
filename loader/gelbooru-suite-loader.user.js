@@ -17,6 +17,7 @@
 // @require      https://raw.githubusercontent.com/auhefguiaehj1/GB-Suite/main/mods/gb.mod.taggroups.js
 // @require      https://raw.githubusercontent.com/auhefguiaehj1/GB-Suite/main/mods/gb.mod.animated-outline.js
 // @require      https://raw.githubusercontent.com/auhefguiaehj1/GB-Suite/main/mods/gb.mod.videoplayer.js
+// @require      https://raw.githubusercontent.com/auhefguiaehj1/GB-Suite/main/mods/gb.mod.tagfavs.js
 // ==/UserScript==
 
 (function(){ window.GBSuite?.start?.(); })();

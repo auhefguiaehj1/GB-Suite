@@ -168,11 +168,11 @@
             favWrap = document.createElement('div');
             favWrap.className = 'gb-favwrap';
             favWrap.innerHTML = `
-        <div class="gb-favbar" id="gb-favbar"></div>
-        <div class="gb-tools" style="margin-left:auto;display:flex;gap:8px">
-          <a href="javascript:void(0)" id="gb-manage" class="gb-suite-btn">Manage Favorites</a>
-        </div>
-      `;
+                <div class="gb-favbar" id="gb-favbar"></div>
+                <div class="gb-tools" style="margin-left:auto;display:flex;gap:8px">
+                <a href="javascript:void(0)" id="gb-manage" class="gb-suite-btn">Manage Favorites</a>
+                </div>
+            `;
             searchArea.insertAdjacentElement('afterend', favWrap);
             favBar = favWrap.querySelector('#gb-favbar');
             favWrap.querySelector('#gb-manage').addEventListener('click', openFavModal);
