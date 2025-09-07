@@ -1,5 +1,13 @@
 (function () {
-  // ===== Settings-Tab: nur Filter + Hotkeys (API-Key/UserID im General-Tab) =====
+  // =================== Debug ===================
+  let DEBUG = false;
+  function dbg(...a){ if (DEBUG) console.log('[GBFav]', ...a); }
+  window.GBFavDebug = {
+    setDebug(v){ DEBUG = !!v; dbg('DEBUG =', DEBUG); },
+    state(){ return { hoverId, mode, userId, haveAddFav: typeof window.addFav, loc: location.href }; }
+  };
+
+  // ===== Settings-Tab: nur Filter + Hotkeys =====
   if (window.GBSuite && typeof window.GBSuite.addSettingsTab === 'function') {
     window.GBSuite.addSettingsTab({
       id: 'favorites',
@@ -47,8 +55,12 @@
     let mode   = 'off'; // 'off' | 'only' | 'hide'
     let userId = '';
     let apiKey = '';
-    let currentThumb = null;
     let cleanupHandlers = [];
+
+    // Hover-State (explizit geloggt)
+    let hoverAnchor = null;
+    let hoverId = null;
+    let lastLoggedHoverId = undefined;
 
     // ---------- Helpers ----------
     function saveSettingsSafe() {
@@ -62,27 +74,21 @@
       }
     }
 
-    function getPostIdFromThumb(node) {
-      if (!node) return null;
-      const a = node.querySelector('a[id^="p"]');
-      if (a?.id) {
-        const n = Number(a.id.replace(/^p/, ''));
+    function extractIdFromAnchor(a){
+      if (!a) return null;
+      if (a.id && /^p\d+$/.test(a.id)) return Number(a.id.slice(1));
+      try {
+        const u = new URL(a.href, location.origin);
+        const n = Number(u.searchParams.get('id'));
         if (Number.isFinite(n)) return n;
-      }
-      const pid = node.getAttribute?.('data-post-id');
-      if (pid && Number.isFinite(Number(pid))) return Number(pid);
-      const link = a || node.querySelector('a[href*="&id="], a[href*="?id="]');
-      if (link) {
-        try {
-          const u = new URL(link.href, location.origin);
-          const n = Number(u.searchParams.get('id'));
-          if (Number.isFinite(n)) return n;
-        } catch {}
-      }
+      } catch {}
       return null;
     }
-    function findThumbNode(target) {
-      return target?.closest?.('.thumbnail-preview, .thumb, .content .thumb') || null;
+
+    function getPostIdFromThumb(node) {
+      if (!node) return null;
+      const a = node.querySelector('a[id^="p"], a[href*="&id="], a[href*="?id="]');
+      return extractIdFromAnchor(a);
     }
 
     function loadCache() { try { return JSON.parse(localStorage.getItem(LS_CACHE) || '{}'); } catch { return {}; } }
@@ -170,13 +176,7 @@
         if (!thumbs.length) break;
         let count = 0;
         for (const n of thumbs) {
-          let id = null;
-          const a = n.querySelector('a[id^="p"]');
-          if (a?.id) id = Number(a.id.replace(/^p/, ''));
-          if (!Number.isFinite(id)) {
-            const link = a || n.querySelector('a[href*="&id="], a[href*="?id="]');
-            if (link) { try { const url = new URL(link.href, location.origin); id = Number(url.searchParams.get('id')); } catch {} }
-          }
+          const id = getPostIdFromThumb(n);
           if (Number.isFinite(id)) { out.push(id); count++; }
         }
         if (count < 50) break;
@@ -185,12 +185,13 @@
     }
     async function fetchFavIds() {
       const c = loadCache();
-      if (cacheValid(c)) { favSet = new Set(c.ids); return; }
+      if (cacheValid(c)) { favSet = new Set(c.ids); dbg('Cache hit', c.ids.length, 'IDs'); return; }
       let ids = [];
       try { ids = await fetchFavIdsViaApi(); } catch {}
       if (!ids.length) { try { ids = await fetchFavIdsViaHtml(); } catch {} }
       favSet = new Set(ids);
       saveCache({ userId, ids, ts: Date.now() });
+      dbg('Fetched fav IDs:', ids.length);
     }
 
     // ---------- Styles ----------
@@ -304,7 +305,7 @@
 
     // ---------- Notices ----------
     function showSiteNotice(text){
-      if (typeof window.notice === 'function') { window.notice(text); return; }
+      if (typeof window.notice === 'function') { dbg('notice() available → using'); window.notice(text); return; }
       let bar = document.getElementById('gb-fav-notice');
       if (!bar){
         bar = document.createElement('div');
@@ -330,26 +331,35 @@
           const node = a.closest('.thumbnail-preview, .thumb, .content .thumb');
           if (node) markNode(node);
         });
+      dbg('updateAfterToggle → id:', id, 'added:', added, 'favSetSize:', favSet.size);
     }
 
     // ---------- Add/Remove ----------
     function getRemoveFavFn(){
       const names = ['removeFav','remFav','delFav','deleteFav','unfav','unfavorite'];
-      for (const n of names){ const fn = window[n]; if (typeof fn === 'function') return fn; }
+      for (const n of names){
+        const fn = window[n];
+        if (typeof fn === 'function') { dbg('found native remove fn:', n); return { fn, name: n }; }
+      }
+      dbg('no native remove fn found');
       return null;
     }
 
     async function toggleFavorite(postId, add) {
-      if (!postId) return;
+      dbg('toggleFavorite start → id:', postId, 'add:', add, 'typeof addFav:', typeof window.addFav);
+      if (!postId) { dbg('toggleFavorite aborted (no postId)'); return; }
 
       if (add) {
-        // Bevorzugt: native addFav (zeigt auch den gelben Banner der Seite)
+        // Bevorzugt: native addFav (zeigt gelben Banner)
         if (typeof window.addFav === 'function') {
           try {
+            dbg('using native addFav(postId)');
             window.addFav(String(postId));
             updateAfterToggle(postId, true);
             return;
-          } catch (e) { /* fallback unten */ }
+          } catch (e) { dbg('native addFav threw:', e); /* fallback unten */ }
+        } else {
+          dbg('native addFav NOT available → fallback');
         }
         // Fallback: POST an favorite/add
         try {
@@ -358,38 +368,41 @@
           u.searchParams.set('s','add');
           const fd = new FormData(); fd.append('id', String(postId));
           if (apiKey && userId){ u.searchParams.set('api_key',apiKey); u.searchParams.set('user_id',userId); fd.append('api_key',apiKey); fd.append('user_id',userId); }
+          dbg('fetch add →', u.toString());
           const resp = await fetch(u, { method:'POST', body:fd, credentials:'same-origin' });
+          dbg('fetch add status:', resp.status);
           if (!resp.ok) throw new Error('HTTP '+resp.status);
           updateAfterToggle(postId, true);
           showSiteNotice('Post added to favorites');
         } catch (err) {
-          console.error('[Suite] add favorite failed:', err);
+          console.error('[GBFav] add favorite failed:', err);
           showSiteNotice('Error adding to favorites');
         }
         return;
       }
 
-      // Entfernen: im Hintergrund „delete“-URL aufrufen, kein Navigation
+      // Entfernen: im Hintergrund „delete“-URL
       try {
-        // 1) Native remove-Funktion, falls vorhanden
         const rem = getRemoveFavFn();
         if (rem) {
-          rem(String(postId));
+          dbg('using native remove fn:', rem.name);
+          rem.fn(String(postId));
           updateAfterToggle(postId, false);
           showSiteNotice('Post removed from favorites');
           return;
         }
-        // 2) GET auf favorites&delete&id=...
         const u = new URL(location.origin + '/index.php');
         u.searchParams.set('page','favorites');
         u.searchParams.set('s','delete');
         u.searchParams.set('id', String(postId));
+        dbg('fetch remove →', u.toString());
         const resp = await fetch(u, { method:'GET', credentials:'same-origin', cache:'no-cache' });
+        dbg('fetch remove status:', resp.status);
         if (!resp.ok) throw new Error('HTTP ' + resp.status);
         updateAfterToggle(postId, false);
         showSiteNotice('Post removed from favorites');
       } catch (err) {
-        console.error('[Suite] remove favorite failed:', err);
+        console.error('[GBFav] remove favorite failed:', err);
         showSiteNotice('Error removing from favorites');
       }
     }
@@ -403,62 +416,90 @@
     return {
       async init(ctx) {
         const s = ctx?.settings;
-        if (s?.Favorites === false) return;
+        if (s?.Favorites === false) { dbg('module disabled via settings'); return; }
 
         userId = String(s?.ApiUserId || s?.FavUserId || '').trim();
         apiKey = String(s?.ApiKey    || s?.FavApiKey || '').trim();
         mode   = s?.FavMode || 'off';
+        dbg('init', { location: location.href, FavMode: mode, FavHotkeyHover: !!s?.FavHotkeyHover, FavHotkeyPost: !!s?.FavHotkeyPost, userIdSet: !!userId, addFavType: typeof window.addFav });
 
         addFilterControls();
 
-        if (userId) { try { await fetchFavIds(); } catch {} }
+        if (userId) { try { await fetchFavIds(); } catch (e) { dbg('fetchFavIds error', e); } }
         applyTo(document.querySelectorAll('.thumbnail-preview, .thumb, .content .thumb'));
 
         const handler = (nodes) => applyTo(nodes);
         ctx.bus.on('newThumbs', handler);
         unsub = () => ctx.bus.off('newThumbs', handler);
 
-        // Hotkeys – im Capture-Modus, damit Site-Handler uns nicht überholen
         const hotkeys = { hover: !!s.FavHotkeyHover, post: !!s.FavHotkeyPost };
+        dbg('hotkeys active?', hotkeys);
 
-        const onMouseOver = (e) => { currentThumb = findThumbNode(e.target) || null; };
-        document.addEventListener('mouseover', onMouseOver, { capture: true });
-        cleanupHandlers.push(() => document.removeEventListener('mouseover', onMouseOver, { capture: true }));
+        // Hover-Tracking (nur loggen, wenn ID wechselt)
+        const hoverScopeSel = '.thumbnail-preview, .thumb, .content .thumb, .post-preview, .thumbnail';
+        const onPointerMove = (e) => {
+          const scope = e.target.closest(hoverScopeSel);
+          if (!scope) { hoverAnchor = null; hoverId = null; if (lastLoggedHoverId !== null){ dbg('hover left preview scope'); lastLoggedHoverId = null; } return; }
+          const a = e.target.closest('a[id^="p"], a[href*="&id="], a[href*="?id="]') ||
+                    scope.querySelector('a[id^="p"], a[href*="&id="], a[href*="?id="]');
+          hoverAnchor = a || null;
+          hoverId = extractIdFromAnchor(hoverAnchor);
+          if (hoverId !== lastLoggedHoverId) {
+            dbg('hover change → id:', hoverId, 'href:', hoverAnchor?.href);
+            lastLoggedHoverId = hoverId;
+          }
+        };
+        document.addEventListener('mousemove', onPointerMove, { capture: true, passive: true });
+        document.addEventListener('mouseover', onPointerMove, { capture: true, passive: true });
+        cleanupHandlers.push(() => document.removeEventListener('mousemove', onPointerMove, true));
+        cleanupHandlers.push(() => document.removeEventListener('mouseover', onPointerMove, true));
 
+        // Key logging & handling
         const onKeyAny = (e) => {
           const tag = (e.target?.tagName || '').toUpperCase();
-          if (tag === 'INPUT' || tag === 'TEXTAREA' || e.isComposing) return;
-          if (e.ctrlKey || e.altKey || e.metaKey) return;
+          const k = (e.key || '').toLowerCase();
+          dbg('key event', { type: e.type, key: e.key, tag, ctrl:e.ctrlKey, alt:e.altKey, meta:e.metaKey, composing:e.isComposing });
 
-          if (hotkeys.hover && currentThumb) {
-            const id = getPostIdFromThumb(currentThumb);
-            if (id && (e.key === 'f' || e.key === 'x')) {
-              e.preventDefault(); e.stopPropagation();
-              toggleFavorite(id, e.key === 'f');
-              return;
-            }
+          if (tag === 'INPUT' || tag === 'TEXTAREA' || e.isComposing) { dbg('skip: typing in input/textarea or composing'); return; }
+          if (e.ctrlKey || e.altKey || e.metaKey) { dbg('skip: modifier key pressed'); return; }
+          if (k !== 'f' && k !== 'x') { return; }
+
+          // Hover first
+          if (hotkeys.hover && hoverId) {
+            dbg('action via HOVER', { key:k, hoverId });
+            e.preventDefault(); e.stopPropagation();
+            toggleFavorite(hoverId, k === 'f');
+            return;
+          } else {
+            dbg('hover path not used', { hotkeysHover: hotkeys.hover, hoverId });
           }
+
+          // Post view
           if (hotkeys.post) {
             const id = getPostIdFromUrl();
-            if (id && (e.key === 'f' || e.key === 'x')) {
+            dbg('post path check', { id });
+            if (id) {
               e.preventDefault(); e.stopPropagation();
-              toggleFavorite(id, e.key === 'f');
+              toggleFavorite(id, k === 'f');
+              return;
             }
+          } else {
+            dbg('post hotkey disabled');
           }
         };
         document.addEventListener('keydown', onKeyAny, { capture: true });
         window.addEventListener('keydown', onKeyAny, { capture: true });
-        document.addEventListener('keyup',   onKeyAny, { capture: true });
+        cleanupHandlers.push(() => document.removeEventListener('keydown', onKeyAny, true));
+        cleanupHandlers.push(() => window.removeEventListener('keydown', onKeyAny, true));
 
-        cleanupHandlers.push(() => document.removeEventListener('keydown', onKeyAny, { capture: true }));
-        cleanupHandlers.push(() => window.removeEventListener('keydown', onKeyAny, { capture: true }));
-        cleanupHandlers.push(() => document.removeEventListener('keyup',   onKeyAny, { capture: true }));
+        dbg('listeners attached (keydown capture on document & window)');
       },
 
       destroy() {
         unsub?.();
         for (const fn of cleanupHandlers) { try { fn(); } catch {} }
         cleanupHandlers = [];
+        dbg('destroyed');
       }
     };
   })());
