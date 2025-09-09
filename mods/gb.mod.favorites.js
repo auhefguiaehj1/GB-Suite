@@ -160,6 +160,7 @@
             }
             return out;
         }
+
         async function fetchFavIdsViaHtml() {
             const out = [];
             for (let page = 0; page < MAX_PAGES; page++) {
@@ -168,12 +169,17 @@
                 u.searchParams.set('s', 'view');
                 u.searchParams.set('id', userId);
                 u.searchParams.set('pid', String(page * 50));
+
                 const resp = await fetch(u, { credentials: 'same-origin', cache: 'no-cache' });
                 if (!resp.ok) break;
+
                 const html = await resp.text();
                 const doc = new DOMParser().parseFromString(html, 'text/html');
+
+                // ✅ korrekt: NodeList in ein Array spreaden
                 const thumbs = [...doc.querySelectorAll('.thumbnail-preview, .thumb, .content .thumb')];
                 if (!thumbs.length) break;
+
                 let count = 0;
                 for (const n of thumbs) {
                     const id = getPostIdFromThumb(n);
@@ -183,6 +189,7 @@
             }
             return out;
         }
+
         async function fetchFavIds() {
             const c = loadCache();
             if (cacheValid(c)) { favSet = new Set(c.ids); dbg('Cache hit', c.ids.length, 'IDs'); return; }
@@ -201,6 +208,7 @@
                 /* Universal-Wrapper exakt in Bildgröße */
                 .gb-overlay-wrap{ position:relative; display:inline-block; line-height:0; border-radius:8px; }
                 .gb-overlay-wrap > img{ display:block; }
+                .gb-hidden-by-fav { display: none !important; }
 
                 /* Herz-Badge (oben rechts im Bild) */
                 .gb-fav-badge{

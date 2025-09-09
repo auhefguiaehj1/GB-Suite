@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gelbooru Suite (Loader)
 // @namespace    anon.suite
-// @version      1.0.28
+// @version      1.0.29
 // @description  Gelbooru Suite - A userscript that adds various enhancements to Gelbooru.
 // @match        https://gelbooru.com/index.php?page=post&s=list*
 // @match        https://gelbooru.com/index.php?page=post&s=view*
