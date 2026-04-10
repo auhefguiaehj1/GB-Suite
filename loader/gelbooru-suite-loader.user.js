@@ -1,11 +1,13 @@
 // ==UserScript==
 // @name         Gelbooru Suite (Loader)
 // @namespace    anon.suite
-// @version      1.0.29
+// @version      1.0.30
 // @description  Gelbooru Suite - A userscript that adds various enhancements to Gelbooru.
 // @match        https://gelbooru.com/index.php?page=post&s=list*
 // @match        https://gelbooru.com/index.php?page=post&s=view*
 // @grant        none
+// @updateURL    https://raw.githubusercontent.com/auhefguiaehj1/GB-Suite/main/loader.user.js
+// @downloadURL  https://raw.githubusercontent.com/auhefguiaehj1/GB-Suite/main/loader.user.js
 
 // @require      https://raw.githubusercontent.com/auhefguiaehj1/GB-Suite/main/mods/gb.core.js
 
@@ -18,6 +20,7 @@
 // @require      https://raw.githubusercontent.com/auhefguiaehj1/GB-Suite/main/mods/gb.mod.animated-outline.js
 // @require      https://raw.githubusercontent.com/auhefguiaehj1/GB-Suite/main/mods/gb.mod.videoplayer.js
 // @require      https://raw.githubusercontent.com/auhefguiaehj1/GB-Suite/main/mods/gb.mod.tagfavs.js
+// @require      https://raw.githubusercontent.com/auhefguiaehj1/GB-Suite/main/mods/gb.mod.recommendations.js
 // ==/UserScript==
 
 (function(){ window.GBSuite?.start?.(); })();
